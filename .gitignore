@@ -1,0 +1,13 @@
+# data is downloaded, never committed
+data/
+*.nc
+*.npy
+*.npz
+
+# python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# os
+.DS_Store

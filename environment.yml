@@ -1,0 +1,13 @@
+name: paleo
+channels:
+  - conda-forge
+dependencies:
+  - python=3.13
+  - numpy
+  - scipy
+  - matplotlib
+  - pandas
+  - xarray
+  - netcdf4
+  - cftime
+  - pip
