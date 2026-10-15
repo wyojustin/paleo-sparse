@@ -53,10 +53,12 @@ from eof_pseudoproxy import ask_continue, safe_weights  # noqa: E402
 # --------------------------------------------------------------------------
 # batch OMP
 # --------------------------------------------------------------------------
-def omp(A, D, L, G=None):
+def omp(A, D, L, G=None, path=False):
     """Batch OMP, all rows at once. A (n, R) signals, D (K, R) atoms with
     unit norm. Returns dense codes C (n, K) with exactly min(L, K) nonzeros
-    per row (fewer only if a row is fully explained)."""
+    per row (fewer only if a row is fully explained).
+    path=True: OMP is nested in L, so also return every step:
+    (list of C for sparsity 1..L, rss (n, L) residual sum of squares)."""
     n, K = A.shape[0], D.shape[0]
     if L > K:
         raise ValueError(f"OMP sparsity L = {L} > number of atoms K = {K}")
@@ -69,6 +71,7 @@ def omp(A, D, L, G=None):
     S = np.zeros((n, L), dtype=np.int64)
     rows = np.arange(n)
     c = np.zeros((n, 0))
+    Cs, rss, a2 = [], np.zeros((n, L)), np.einsum("nr,nr->n", A, A)
     for s in range(L):
         score = np.abs(alpha)
         if s:
@@ -79,6 +82,12 @@ def omp(A, D, L, G=None):
         Gs += 1e-10 * np.eye(s + 1)                # guards duplicate atoms
         c = np.linalg.solve(Gs, a0[rows[:, None], idx][..., None])[..., 0]
         alpha = a0 - np.einsum("ns,nsk->nk", c, G[idx])
+        if path:                                   # LS fit: ||r||^2 = ||a||^2 - c . a0_S
+            rss[:, s] = a2 - np.einsum("ns,ns->n", c, a0[rows[:, None], idx])
+            Cs.append(np.zeros((n, K)))
+            Cs[-1][rows[:, None], idx] = c
+    if path:
+        return Cs, rss
     C = np.zeros((n, K))
     C[rows[:, None], S] = c
     return C

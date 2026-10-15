@@ -40,8 +40,18 @@ Proxy-based climate field reconstruction as compressive sensing, row-vector conv
   | 16 | 0.323 | 0.234 | 0.206 | 0.214 |
 
   Premise holds: at fixed L, sparse codes in a 256-atom dictionary leave about 2/3 of the EOF top-L error (L = 4: 0.39 vs 0.58), consistently across all 5 phases and on the forced-warming split (train [850, 1850), test [1850, 2006)). About half the gain already comes from adaptive selection in the EOF basis. K-SVD does not beat the untrained analog dictionary for L ≥ 4: with 926 training years it overfits (train error is about half the test error). Caveat: an L-sparse code also carries log2 C(K, L) bits of support.
-- **Open next steps** (pick one): (a) more training data, i.e. download more LME members (about 0.47 GB each), so learning can beat analogs; (b) the proxy step: OMP/LASSO with ΨΦ at the PAGES 2k sites vs the EOF ℓ2 baseline, same pseudoproxies.
-- Then: staircase proxy networks, cfr baselines (EnKF, GraphEM), phase transition.
+- `src/proxy_recon.py`: **proxy step**. Same pseudoproxies (692 PAGES 2k, 355 cells), same prior years, noise variance from calibration residuals. ℓ2: `gauss` (Kalman / offline EnKF with the prior years as ensemble, full rank), `gauss_r` (rank r), `eofreg_r` (earlier baseline). ℓ1: OMP (whole L path, plus chi2 discrepancy stop) and LASSO (FISTA, α sweep), both in analog and K-SVD dictionaries. Designs: `cal` (prior [1850, 2006), test [850, 1850)) and `blocks` (prior = all but held-out decades in [850, 1850)). Validation cell CE (area mean); sparse values are the best over L or α (**oracle**):
+
+  | SNR | design | gauss | gauss_16 | eofreg_16 | best OMP | best LASSO | chi2 OMP |
+  |---|---|---|---|---|---|---|---|
+  | 0.5 | cal | **0.414** | 0.337 | 0.314 | 0.141 | 0.350 | -0.14 |
+  | 0.5 | blocks | **0.497** | 0.399 | 0.271 | 0.196 | 0.415 | -0.19 |
+  | 2 | cal | 0.489 | 0.368 | 0.399 | 0.356 | **0.506** (α at sweep edge, 71 nnz) | 0.35 |
+  | 2 | blocks | **0.663** | 0.429 | 0.362 | 0.434 | 0.606 | 0.40 |
+
+  **Negative result.** The approximation gain from the premise test does not carry over to recovery. The full-rank Gaussian (Kalman) wins in every case except one oracle-tuned, nearly dense LASSO. Likely reasons: (1) OMP's least-squares coefficients are unshrunk, so at SNR 0.5 they amplify noise (skill peaks at L ≈ 4, then CE goes negative); (2) support selection from 355 noisy cells is unreliable; (3) the chi2 stop overfits (σ² is estimated from 156 years, and the low SNR leaves little signal energy above the noise floor). Side finding: full-rank `gauss` beats every truncated EOF method by about 0.08 to 0.25 CE, so the earlier `eofreg_r` baseline was weak.
+- **Open next steps** (pick one): (a) shrink on the support: OMP/LASSO support, then Gaussian-posterior (MMSE) coefficients with prior variances from training codes (sparse Bayesian, closer to a fair ℓ1 vs ℓ2 test); (b) more LME members for training; (c) SNR × proxy-count phase diagram for gauss vs sparse, to find where, if anywhere, sparse wins.
+- Then: cfr baselines (EnKF, GraphEM).
 
 ## Data (never committed; `data/` is gitignored)
 

@@ -19,7 +19,7 @@ Evaluation follows the standard pseudoproxy protocol: a climate-model run is the
 - `src/lme_loader.py`: opens a CESM1 Last Millennium Ensemble monthly netCDF time series and returns annual-mean anomalies X (T × N), lat/lon and √cos(lat) weights. Run `python src/lme_loader.py --selftest`.
 - `src/eof_pseudoproxy.py`: weighted EOFs, pseudoproxy sampling at proxy sites, an EOF-regression (ℓ2) baseline and CE/correlation scoring. The demo runs on a synthetic field at the real PAGES 2k sites (`figures/`).
 - `src/sparsity_test.py`: premise test on held-out LME years. At equal sparsity L, codes in a learned (K-SVD) or analog dictionary leave about 2/3 of the error of the top-L EOFs. Run `python src/sparsity_test.py --selftest`.
-- Next: the sparse method with proxies, and the sparse-vs-Gaussian comparison.
+- `src/proxy_recon.py`: OMP and LASSO in a learned or analog dictionary vs Gaussian (Kalman, EOF) reconstructions from the same PAGES 2k pseudoproxies. So far the full-rank Gaussian prior wins at SNR 0.5 and 2. Run `python src/proxy_recon.py --selftest`.
 
 ## Data (not committed)
 
