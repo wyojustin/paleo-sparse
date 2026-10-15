@@ -31,8 +31,17 @@ Proxy-based climate field reconstruction as compressive sensing, row-vector conv
   | 16 | 0.892 | 0.781 | 0.314 |
 
   EOF spectrum decays slowly (EOF 0 = 22%): compressible, not sparse. Poor skill in the Southern Ocean; r = 4 imposes spurious polar bands in volcanic years (e.g. 1259, Samalas). Volcanic dips (1259, ~1453, ~1600, 1815) are captured in the global mean.
-- **Next single step**: test whether the LME field is sparse in a learned dictionary. On held-out years, compare reconstruction error at equal sparsity L: top-L EOFs vs L atoms of a learned overcomplete dictionary. No proxies yet; this only tests the premise.
-- Then: staircase proxy networks, cfr baselines (EnKF, GraphEM), LASSO/OMP with learned Ψ, phase transition.
+- `src/sparsity_test.py`: **premise test** (no proxies). Held-out unexplained fraction at equal sparsity L: EOF top-L, EOF best-L per year, analog dictionary (normalized training years, OMP), K-SVD (K ∈ {64, 256}, OMP). `--selftest` passes (recovers a planted dictionary). Result (member 002 TREFHT, decade-block split, mean over 5 block phases):
+
+  | L | EOF top-L | EOF best-L | analog | K-SVD 256 |
+  |---|---|---|---|---|
+  | 1 | 0.782 | 0.709 | 0.615 | 0.597 |
+  | 4 | 0.578 | 0.454 | 0.387 | 0.392 |
+  | 16 | 0.323 | 0.234 | 0.206 | 0.214 |
+
+  Premise holds: at fixed L, sparse codes in a 256-atom dictionary leave about 2/3 of the EOF top-L error (L = 4: 0.39 vs 0.58), consistently across all 5 phases and on the forced-warming split (train [850, 1850), test [1850, 2006)). About half the gain already comes from adaptive selection in the EOF basis. K-SVD does not beat the untrained analog dictionary for L ≥ 4: with 926 training years it overfits (train error is about half the test error). Caveat: an L-sparse code also carries log2 C(K, L) bits of support.
+- **Open next steps** (pick one): (a) more training data, i.e. download more LME members (about 0.47 GB each), so learning can beat analogs; (b) the proxy step: OMP/LASSO with ΨΦ at the PAGES 2k sites vs the EOF ℓ2 baseline, same pseudoproxies.
+- Then: staircase proxy networks, cfr baselines (EnKF, GraphEM), phase transition.
 
 ## Data (never committed; `data/` is gitignored)
 
