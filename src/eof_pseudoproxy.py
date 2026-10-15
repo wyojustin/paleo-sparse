@@ -284,19 +284,37 @@ def synthetic_field(lat, lon, years, rng, noise_sd=0.35):
 # --------------------------------------------------------------------------
 # demo
 # --------------------------------------------------------------------------
-def demo(pages2k=None, snr=0.5, r=4, seed=0, outdir=None):
+def demo(pages2k=None, snr=0.5, r=4, seed=0, outdir=None, lme=None, var="TREFHT"):
     import matplotlib
     if not os.environ.get("DISPLAY") and sys.platform.startswith("linux"):
         matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     rng = np.random.default_rng(seed)
-    lat = np.linspace(-90, 90, 46)                 # 4 deg, includes poles like CESM f19
-    lon = np.arange(0, 360, 5.0)
-    years = np.arange(850, 2006)                   # LME span [850, 2006)
-    X, cl, co, _ = synthetic_field(lat, lon, years, rng)
-    X = X - X[(years >= 1951) & (years < 1981)].mean(0)
-    w = np.sqrt(np.clip(np.cos(np.deg2rad(cl)), 0, None))
+    if lme:                                        # real CESM-LME truth
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from lme_loader import load_lme
+        f = load_lme(lme, var)
+        X, years, lat, lon = f.X, f.years, f.lat, f.lon
+        cl, co, w = f.cell_lat, f.cell_lon, f.w
+        if not f.mask.all():
+            raise SystemExit("eof_pseudoproxy: masked grids are not supported yet "
+                             f"({(~f.mask).sum()} cells masked); the maps assume a full grid")
+        truth_name, units = f"CESM-LME {var}", f"anomaly ({f.units})"
+        for n in f.notes:
+            print(f"[load_lme] NOTE: {n}")
+    else:                                          # synthetic truth
+        lat = np.linspace(-90, 90, 46)             # 4 deg, includes poles like CESM f19
+        lon = np.arange(0, 360, 5.0)
+        years = np.arange(850, 2006)               # LME span [850, 2006)
+        X, cl, co, _ = synthetic_field(lat, lon, years, rng)
+        X = X - X[(years >= 1951) & (years < 1981)].mean(0)
+        w = np.sqrt(np.clip(np.cos(np.deg2rad(cl)), 0, None))
+        truth_name, units = "Synthetic", "anomaly (synthetic units)"
+    for need in (850, 1849, 1850, 2005):
+        if need not in years:
+            raise SystemExit(f"eof_pseudoproxy: truth lacks year {need}; needs [850, 2006) "
+                             f"for calibration [1850, 2006) and validation [850, 1850)")
 
     if pages2k:
         plat, plon, arch, ids = load_proxy_sites(pages2k)
@@ -315,7 +333,7 @@ def demo(pages2k=None, snr=0.5, r=4, seed=0, outdir=None):
     m = metrics(X, Xhat, cl, val)
     ef_full = eof(X, w)
 
-    print(f"Synthetic truth: X {X.shape} (T x N), years [{years[0]}, {years[-1] + 1})")
+    print(f"{truth_name} truth: X {X.shape} (T x N), years [{years[0]}, {years[-1] + 1})")
     print(f"Proxies: {src}: {len(keep)} used, {np.unique(idx).size} distinct cells, "
           f"median snap distance {np.median(dist):.0f} km, SNR = {snr}")
     print(f"Calibration years [1850, 2006), validation [850, 1850), r = {r}")
@@ -350,7 +368,7 @@ def demo(pages2k=None, snr=0.5, r=4, seed=0, outdir=None):
         ax.set_title(ttl, color=ink, fontsize=11)
         ax.set_xlim(0, 360); ax.set_ylim(-90, 90)
         ax.set_xlabel("lon (deg E)", color=muted); ax.set_ylabel("lat", color=muted)
-    fig.colorbar(pm, ax=fig.axes[:2], shrink=0.8, label="anomaly (synthetic units)")
+    fig.colorbar(pm, ax=fig.axes[:2], shrink=0.8, label=units)
 
     ax = fig.add_subplot(gs[1, 0])
     ce_map = m["ce"].reshape(shp)
@@ -385,7 +403,8 @@ def demo(pages2k=None, snr=0.5, r=4, seed=0, outdir=None):
 
     outdir = outdir or os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "figures")
     os.makedirs(outdir, exist_ok=True)
-    out = os.path.join(outdir, f"{_dt.date.today():%Y-%m-%d}_eof_pseudoproxy_demo.png")
+    tag = f"lme_{var.lower()}" if lme else "demo"
+    out = os.path.join(outdir, f"{_dt.date.today():%Y-%m-%d}_eof_pseudoproxy_{tag}.png")
     fig.savefig(out, dpi=130)
     print(f"Saved {out}")
     plt.show()
@@ -399,5 +418,8 @@ if __name__ == "__main__":
     ap.add_argument("--snr", type=float, default=0.5)
     ap.add_argument("--r", type=int, default=4)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--lme", nargs="+", metavar="FILE.nc",
+                    help="CESM-LME monthly files to use as truth (default: synthetic field)")
+    ap.add_argument("--var", default="TREFHT")
     a = ap.parse_args()
-    demo(a.pages2k, a.snr, a.r, a.seed)
+    demo(a.pages2k, a.snr, a.r, a.seed, lme=a.lme, var=a.var)
