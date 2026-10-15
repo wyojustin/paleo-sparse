@@ -51,9 +51,12 @@ for _mod in ("netCDF4", "cftime"):
 # --------------------------------------------------------------------------
 # loud-failure helper
 # --------------------------------------------------------------------------
+FORCE_NONINTERACTIVE = False      # the self-test sets this so its planted problems always abort
+
+
 def ask_continue(msg: str) -> None:
     """Interactive: offer quit/continue. Non-interactive: abort."""
-    if sys.stdin is not None and sys.stdin.isatty():
+    if not FORCE_NONINTERACTIVE and sys.stdin is not None and sys.stdin.isatty():
         ans = input(f"\nWARNING: {msg}\n  [q]uit or [c]ontinue? ").strip().lower()
         if ans.startswith("c"):
             return
@@ -255,6 +258,8 @@ def _write_fake_cesm(path, y0, y1, lat, lon, rng, var="TREFHT"):
 def selftest():
     import os
     import tempfile
+    global FORCE_NONINTERACTIVE
+    FORCE_NONINTERACTIVE = True                    # planted gap must abort, even in a terminal
     rng = np.random.default_rng(0)
     lat = np.linspace(-90, 90, 19)                 # coarse stand-in for 96 x 144
     lon = np.arange(0, 360, 20.0)
