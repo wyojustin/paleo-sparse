@@ -18,7 +18,25 @@ Proxy-based climate field reconstruction as compressive sensing, row-vector conv
 - Proposal: a learned **overcomplete** Ψ (dictionary learning or an SAE on CESM-LME output) with an ℓ1 prior (LASSO, OMP), compared against ℓ2 methods in pseudoproxy experiments, including a phase-transition analysis (proxy count m vs active atoms k).
 - Prior-art check (2026-10-15, web search, not yet a Scholar sweep): nothing found using a learned sparse dictionary as the reconstruction prior. Closest: GraphEM (Guillot, Rajaratnam & Emile-Geay 2015; ℓ1 on the precision matrix, Gaussian prior on the field; ~43% lower MSE than RegEM-TTLS). SAEs on AI weather models exist (GraphCast, SONNY, ClimaX) but interpret network activations, never physical fields.
 
-## Status
+## Status: measurement-only track (active since 2026-10-15)
+
+No CESM or other forward model as training data; reanalysis only as a comparison. Learn from PAGES 2k proxies alone. Validation: leave-one-site-out over 418 sites (509 annual records, each z-scored within the window; co-located records averaged into one site). Score per site: r, v = var(ẑ)/var(z), SS = 1 − MSE/var (0 = predict the mean); SS = 2r√v − v − bias² exactly.
+
+- `src/proxy_data.py`: loads all 692 records (fixes 193 reversed and 15 mixed-order records, drops 838 NaN pairs), annual matrix Y, overview figure. 509 annual records, 61 sub-annual (corals, ice), 122 coarser. Seasonal share of variance in sub-annual corals: median 0.34.
+- `src/proxy_baselines.py`: nearest neighbor and spherical Delaunay (convex hull of unit vectors, barycentric weights). Both negative median SS: copying a neighbor gives SS = 2r − 1, and r ≈ 0.3. Delaunay is better mainly through accidental shrinkage (v = 0.68).
+- Correlogram (all pairs): r ≈ 0.5 at < 50 km (nugget: half a tree record is site-specific), a fast drop by 100 km, then decay over about 400 to 700 km, and a +0.03 tail. Non-tree pairs r ≲ 0.1 at all distances.
+- `src/proxy_learned.py` (full leave-one-out, about 23 min per window on 16 cores) and `src/proxy_summary.py`: ridge, kriging (two-scale correlogram plus nugget), MLP, bidirectional LSTM, temporal CNN; K = 8 neighbors plus proxy class. Median SS:
+
+  | window | nearest | Delaunay | ridge | krige | MLP | LSTM | TCN |
+  |---|---|---|---|---|---|---|---|
+  | [1500, 2001) | −0.35 | −0.09 | +0.160 | +0.148 | +0.158 | +0.163 | +0.163 |
+  | [1000, 2001) | −0.39 | −0.15 | +0.144 | +0.135 | +0.138 | +0.139 | +0.136 |
+
+  All learned models beat both baselines at about 80 % of sites. Paired per site, kriging is best (beats ridge at 67 to 70 % of sites, beats LSTM at 63 to 65 %; bootstrap CIs exclude 0); the neural nets add only +0.003 to +0.006 over ridge. Tree sites median SS about +0.2 to +0.25; non-tree sites ≈ 0.
+- `src/proxy_probe.py`: the neural nets converge to kriging: total weight about 0.7 (shrinkage), weights decay with distance like the correlogram, no sign flips learned between proxy classes, temporal kernel almost a delta at τ = 0 (LSTM: small −0.025 at τ = −1).
+- Not yet decided (Justin's call): which direction to deepen.
+
+## Status: CESM pseudoproxy track (paused)
 
 - `src/lme_loader.py`: CESM1 LME monthly netCDF → annual-mean anomalies X (T × N), sqrt(cos lat) weights. `--selftest` passes.
 - `src/eof_pseudoproxy.py`: weighted EOFs, pseudoproxy sampling at PAGES 2k sites, EOF-regression ℓ2 baseline, CE/corr metrics. `--lme FILES` uses real LME as truth.

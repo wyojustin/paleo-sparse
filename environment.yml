@@ -10,4 +10,5 @@ dependencies:
   - xarray
   - netcdf4
   - cftime
+  - pytorch
   - pip
